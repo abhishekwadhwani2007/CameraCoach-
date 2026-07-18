@@ -3,20 +3,22 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
-import 'package:path_provider/path_provider.dart';
 import 'package:tflite_flutter/tflite_flutter.dart';
+import '../services/local_storage_service.dart';
 import '../utils/logger.dart';
 
-/// Generates on-device silhouette overlays using TFLite pose landmark model.
+/// Generates on-device silhouette overlays using the TFLite pose landmark model.
 class SilhouetteGenerator {
   static Interpreter? _interpreter;
 
   static Future<void> _loadModel() async {
     if (_interpreter != null) return;
     try {
-      _interpreter = await Interpreter.fromAsset('assets/models/pose_landmark_full.tflite');
+      _interpreter = await Interpreter.fromAsset(
+        'assets/models/pose_landmark_full.tflite',
+      );
     } catch (e) {
-      AppLogger.error('Error loading model: $e');
+      AppLogger.error('Error loading silhouette model: $e');
     }
   }
 
@@ -38,13 +40,13 @@ class SilhouetteGenerator {
     final width = original.width;
     final height = original.height;
 
-    const sz = 256;
-    final resized = img.copyResize(original, width: sz, height: sz);
+    const targetSize = 256;
+    final resized = img.copyResize(original, width: targetSize, height: targetSize);
 
-    final inputFlat = Float32List(sz * sz * 3);
+    final inputFlat = Float32List(targetSize * targetSize * 3);
     int flatIdx = 0;
-    for (int y = 0; y < sz; y++) {
-      for (int x = 0; x < sz; x++) {
+    for (int y = 0; y < targetSize; y++) {
+      for (int x = 0; x < targetSize; x++) {
         final p = resized.getPixel(x, y);
         inputFlat[flatIdx++] = p.r.toDouble() / 255.0;
         inputFlat[flatIdx++] = p.g.toDouble() / 255.0;
@@ -52,7 +54,7 @@ class SilhouetteGenerator {
       }
     }
 
-    final maskFlat = Float32List(sz * sz);
+    final maskFlat = Float32List(targetSize * targetSize);
 
     try {
       _interpreter!.allocateTensors();
@@ -60,7 +62,7 @@ class SilhouetteGenerator {
       _interpreter!.invoke();
       _interpreter!.getOutputTensor(2).copyTo(maskFlat);
     } catch (e) {
-      AppLogger.error('Inference error: $e');
+      AppLogger.error('Silhouette inference error: $e');
       _interpreter?.close();
       _interpreter = null;
       return null;
@@ -69,10 +71,11 @@ class SilhouetteGenerator {
     final canvas = img.Image(width: width, height: height, numChannels: 4);
     img.fill(canvas, color: img.ColorRgba8(0, 0, 0, 0));
 
-    final boolMask = List.generate(sz, (i) => List.filled(sz, false));
-    for (int y = 0; y < sz; y++) {
-      for (int x = 0; x < sz; x++) {
-        boolMask[y][x] = _sigmoid(maskFlat[y * sz + x]) > 0.5;
+    final boolMask =
+        List.generate(targetSize, (i) => List.filled(targetSize, false));
+    for (int y = 0; y < targetSize; y++) {
+      for (int x = 0; x < targetSize; x++) {
+        boolMask[y][x] = _sigmoid(maskFlat[y * targetSize + x]) > 0.5;
       }
     }
 
@@ -86,9 +89,7 @@ class SilhouetteGenerator {
         final rx = (rSh['x'] as num).toDouble();
         final ry = (rSh['y'] as num).toDouble();
         final d = sqrt((lx - rx) * (lx - rx) + (ly - ry) * (ly - ry));
-        if (d > 20) {
-          bodyScale = d;
-        }
+        if (d > 20) bodyScale = d;
       }
 
       Offset? getPt(String key) {
@@ -96,9 +97,9 @@ class SilhouetteGenerator {
         if (pt == null) return null;
         final lx = (pt['x'] as num).toDouble();
         final ly = (pt['y'] as num).toDouble();
-        final lh = (pt['lh'] as num).toDouble();
-        if (lh < 0.25) return null;
-        return Offset((lx / width) * sz, (ly / height) * sz);
+        final confidence = (pt['lh'] as num).toDouble();
+        if (confidence < 0.25) return null;
+        return Offset((lx / width) * targetSize, (ly / height) * targetSize);
       }
 
       void drawThickLine(String keyA, String keyB, double widthRatio) {
@@ -106,8 +107,8 @@ class SilhouetteGenerator {
         final b = getPt(keyB);
         if (a == null || b == null) return;
 
-        final double thick = (bodyScale * widthRatio / width) * sz;
-        final double thickness = max(3.0, thick);
+        final thickness =
+            max(3.0, (bodyScale * widthRatio / width) * targetSize);
 
         final x0 = a.dx;
         final y0 = a.dy;
@@ -132,7 +133,8 @@ class SilhouetteGenerator {
             }
             final projX = x0 + t * dx;
             final projY = y0 + t * dy;
-            final distSq = (x - projX) * (x - projX) + (y - projY) * (y - projY);
+            final distSq =
+                (x - projX) * (x - projX) + (y - projY) * (y - projY);
             if (distSq <= thickness * thickness) {
               boolMask[y][x] = true;
             }
@@ -144,8 +146,8 @@ class SilhouetteGenerator {
         final pt = getPt(key);
         if (pt == null) return;
 
-        final double rad = (bodyScale * radiusRatio / width) * sz;
-        final double radius = max(2.5, rad);
+        final radius =
+            max(2.5, (bodyScale * radiusRatio / width) * targetSize);
 
         final cx = pt.dx;
         final cy = pt.dy;
@@ -157,7 +159,8 @@ class SilhouetteGenerator {
 
         for (int y = minY; y <= maxY; y++) {
           for (int x = minX; x <= maxX; x++) {
-            final distSq = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+            final distSq =
+                (x - cx) * (x - cx) + (y - cy) * (y - cy);
             if (distSq <= radius * radius) {
               boolMask[y][x] = true;
             }
@@ -189,27 +192,33 @@ class SilhouetteGenerator {
       drawCircle('rightAnkle', 0.12);
     }
 
-    final edgeMask = List.generate(sz, (i) => List.filled(sz, false));
-    for (int y = 1; y < sz - 1; y++) {
-      for (int x = 1; x < sz - 1; x++) {
+    // Detect edge pixels — those on the boundary of the silhouette — which
+    // are where we paint the neon glow rather than filling the whole shape.
+    final edgeMask =
+        List.generate(targetSize, (i) => List.filled(targetSize, false));
+    for (int y = 1; y < targetSize - 1; y++) {
+      for (int x = 1; x < targetSize - 1; x++) {
         if (boolMask[y][x]) {
-          if (!boolMask[y-1][x] || !boolMask[y+1][x] || !boolMask[y][x-1] || !boolMask[y][x+1]) {
+          if (!boolMask[y - 1][x] ||
+              !boolMask[y + 1][x] ||
+              !boolMask[y][x - 1] ||
+              !boolMask[y][x + 1]) {
             edgeMask[y][x] = true;
           }
         }
       }
     }
 
-    final scaleX = width / sz;
-    final scaleY = height / sz;
+    final scaleX = width / targetSize;
+    final scaleY = height / targetSize;
     final glowRadius = max(4, (max(width, height) * 0.005).toInt());
 
-    for (int y = 0; y < sz; y++) {
-      for (int x = 0; x < sz; x++) {
+    for (int y = 0; y < targetSize; y++) {
+      for (int x = 0; x < targetSize; x++) {
         if (edgeMask[y][x]) {
           final origX = (x * scaleX).round();
           final origY = (y * scaleY).round();
-          
+
           img.fillCircle(
             canvas,
             x: origX,
@@ -228,8 +237,12 @@ class SilhouetteGenerator {
       }
     }
 
-    final dir = await getTemporaryDirectory();
-    final out = File('${dir.path}/reference_overlay_${DateTime.now().millisecondsSinceEpoch}.png');
+    // Write into the scoped temp directory so startup cleanup can safely
+    // remove it without risking files from other apps.
+    final scopedPath = await LocalStorageService.getScopedTempPath();
+    final out = File(
+      '$scopedPath/reference_overlay_${DateTime.now().millisecondsSinceEpoch}.png',
+    );
     await out.writeAsBytes(img.encodePng(canvas));
     return out.path;
   }

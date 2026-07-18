@@ -97,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (ctx) => AlertDialog(
             title: const Text('Camera Permission Required'),
             content: const Text(
-              'PoseCoach needs access to your camera for real-time pose guidance. '
+              'CameraCoach needs access to your camera for real-time pose guidance. '
               'Please enable camera access in system settings to use this feature.',
             ),
             actions: [
@@ -152,13 +152,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PoseCoach'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_outline_rounded),
-            onPressed: () {},
-          ),
-        ],
+        title: const Text('CameraCoach'),
+        actions: const [],
       ),
       body: Container(
         width: double.infinity,
@@ -197,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         size: 60, color: AppTheme.primaryColor),
                     const SizedBox(height: 24),
                     const Text(
-                      'PoseCoach AI',
+                      'CameraCoach AI',
                       style: TextStyle(
                           fontSize: 28,
                           fontWeight: FontWeight.bold,

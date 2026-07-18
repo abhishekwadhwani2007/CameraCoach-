@@ -38,7 +38,7 @@ class _PoseConfirmationScreenState extends State<PoseConfirmationScreen> {
     AppLogger.debug('PoseConfirmationScreen: received overlayPath: ${widget.overlayPath != null ? "present" : "null"}');
     try {
       final file = File(widget.imagePath);
-      final decodedImage = await decodeImageFromList(file.readAsBytesSync());
+      final decodedImage = await decodeImageFromList(await file.readAsBytes());
 
       setState(() {
         _imageSize = Size(

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'camera_ui_colors.dart';
@@ -92,7 +93,7 @@ class BottomBar extends StatelessWidget {
                     animation: flipAnim,
                     builder: (_, child) => Transform(
                       alignment: Alignment.center,
-                      transform: Matrix4.rotationY(flipAnim.value * 3.14159),
+                      transform: Matrix4.rotationY(flipAnim.value * math.pi),
                       child: child,
                     ),
                     child: GestureDetector(
@@ -310,6 +311,7 @@ class _ShutterBtnState extends State<ShutterBtn>
   }
 
   Future<void> _press() async {
+    if (widget.busy) return; // Ignore taps while a capture is already in flight.
     await _pressAnimController.reverse();
     await _pressAnimController.forward();
     widget.onTap();

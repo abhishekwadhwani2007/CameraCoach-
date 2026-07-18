@@ -665,83 +665,6 @@ def restore_head_neck_interior(canvas: np.ndarray, original: np.ndarray,
     ).astype(np.uint8)
 
 
-def draw_overlay(img_bgr: np.ndarray, seg_mask: np.ndarray,
-                 lms: np.ndarray | None = None) -> np.ndarray:
-    H, W = img_bgr.shape[:2]
-    base   = max(H, W)
-    canvas = img_bgr.copy()
-
-    if lms is None:
-        binary = (seg_mask > 0.5).astype(np.uint8) * 255
-    else:
-        body_sc  = _get_body_scale(lms)
-        kettle_ell = _detect_kettlebell_ellipse(img_bgr, lms, body_sc)
-        skeleton = build_skeleton_mask(H, W, lms, kettle_ell)
-        coarse   = combine_masks(seg_mask, skeleton)
-
-        heel_toe = [29, 30, 31, 32]
-        ht_ys = [int(lms[fi][1]) for fi in heel_toe if lms[fi][3] > 0.15]
-        if not ht_ys:
-            ht_ys = [int(lms[fi][1]) for fi in [27, 28] if lms[fi][3] > 0.15]
-        floor_y = (max(ht_ys) + int(H * 0.025)) if ht_ys else None
-
-        force_fg = np.zeros((H, W), dtype=np.uint8)
-        _draw_arm_force_fg(force_fg, lms, body_sc)
-
-        if kettle_ell is not None:
-            ell_cx, ell_cy, ell_rx, ell_ry = kettle_ell
-            cv2.ellipse(force_fg, (ell_cx, ell_cy), (ell_rx, ell_ry),
-                        0, 0, 360, 255, -1, lineType=cv2.LINE_AA)
-
-        binary = refine_with_grabcut(img_bgr, coarse, iterations=3,
-                                     floor_y=floor_y, force_fg=force_fg)
-        binary = smooth_hair_neck_mask(binary, lms, body_sc)
-
-    contours = extract_body_contours(binary)
-    if contours is None:
-        print('WARNING: Could not extract body contour from segmentation mask.')
-        return canvas
-
-    draw_glow_outline(canvas, contours, base)
-    if lms is not None:
-        restore_head_neck_interior(canvas, img_bgr, binary, lms, body_sc)
-    return canvas
-
-
-def process(input_path: str, output_path: str) -> None:
-    if not os.path.exists(MODEL_PATH):
-        print(f'ERROR: Model not found at {MODEL_PATH}')
-        sys.exit(1)
-
-    print(f'[1/4] Loading    -> {input_path}')
-    img = cv2.imread(input_path)
-    if img is None:
-        raise FileNotFoundError(f'Cannot read: {input_path}')
-    print(f'      Size: {img.shape[1]}x{img.shape[0]}px')
-
-    print('[2/4] Running pose landmark model ...')
-    lms, score, seg_mask = run_pose(img)
-    print(f'      Pose confidence: {score:.3f}')
-
-    print('[3/4] Drawing body outline ...')
-    result = draw_overlay(img, seg_mask, lms)
-
-    print(f'[4/4] Saving     -> {output_path}')
-    cv2.imwrite(output_path, result)
-    print('Done!')
-
-
-def extract_contours_from_image(body_image_path: str) -> tuple[list, tuple[int, int]]:
-    """
-    Run pose detection on a body image and return the extracted glow contours
-    along with the source image dimensions (H, W).
-    """
-    binary, (H, W) = extract_body_mask_from_image(body_image_path)
-    contours = extract_body_contours(binary)
-    if contours is None:
-        raise RuntimeError('Could not extract body contour from the body image.')
-    print(f'      Extracted {len(contours)} contour(s).')
-    return contours, (H, W)
 
 
 def extract_body_mask_from_image(body_image_path: str) -> tuple[np.ndarray, tuple[int, int]]:
@@ -825,12 +748,6 @@ def generate_transparent_overlay(body_image_path: str,
     cv2.imwrite(output_path, rgba)
     print('Done!')
 
-
-def process_overlay_on_background(*_args, **_kwargs) -> None:
-    raise RuntimeError(
-        'process_overlay_on_background is deprecated. Use '
-        'generate_transparent_overlay(body_image_path, output_path).'
-    )
 
 
 if __name__ == '__main__':

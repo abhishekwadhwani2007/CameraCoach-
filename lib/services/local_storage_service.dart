@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
@@ -19,6 +19,24 @@ class LocalStorageService {
   );
 
   static final List<String> _inMemoryRefs = [];
+
+  // ---------------------------------------------------------------------------
+  // Scoped temp directory — all CameraCoach temp files live here, never in the
+  // system temp root, so cleanup never risks touching unrelated app files.
+  // ---------------------------------------------------------------------------
+  static Future<Directory> _getScopedTempDir() async {
+    final systemTemp = await getTemporaryDirectory();
+    final scopedDir = Directory('${systemTemp.path}/camera_coach_temp');
+    if (!await scopedDir.exists()) {
+      await scopedDir.create(recursive: true);
+    }
+    return scopedDir;
+  }
+
+  /// Returns the scoped temp directory path for use by other services.
+  static Future<String> getScopedTempPath() async {
+    return (await _getScopedTempDir()).path;
+  }
 
   static Future<void> saveReference({
     required String originalImagePath,
@@ -115,23 +133,20 @@ class LocalStorageService {
 
   static Future<void> deleteReference(String id) async {
     try {
-      final List<String> toKeep = [];
-      for (var item in _inMemoryRefs) {
-        final map = jsonDecode(item);
+      // Remove the matching entry from the in-memory list while also cleaning
+      // up the stored image and overlay files from disk.
+      _inMemoryRefs.removeWhere((item) {
+        final map = jsonDecode(item) as Map<String, dynamic>;
         if (map['id'] == id) {
-          final file = File(map['imagePath'] as String);
-          if (await file.exists()) await file.delete();
+          // Fire-and-forget file deletion — errors are non-fatal here.
+          final imagePath = map['imagePath'] as String?;
+          if (imagePath != null) File(imagePath).delete().catchError((_) {});
           final outlinePath = map['outlinePath'] as String?;
-          if (outlinePath != null) {
-            final outline = File(outlinePath);
-            if (await outline.exists()) await outline.delete();
-          }
-        } else {
-          toKeep.add(item);
+          if (outlinePath != null) File(outlinePath).delete().catchError((_) {});
+          return true;
         }
-      }
-      _inMemoryRefs.clear();
-      _inMemoryRefs.addAll(toKeep);
+        return false;
+      });
 
       final active = await _storage.read(key: _activeReferenceKey);
       if (active != null) {
@@ -147,31 +162,25 @@ class LocalStorageService {
     }
   }
 
-  /// Removes temporary images left behind by interrupted capture flows.
+  /// Removes temporary CameraCoach files left behind by interrupted capture
+  /// flows. Only touches the scoped camera_coach_temp/ subdirectory — this
+  /// method will never delete files belonging to other apps.
   static Future<void> cleanOrphanedReferences() async {
     try {
-      final List<Directory> dirsToClean = [];
-      try {
-        dirsToClean.add(await getTemporaryDirectory());
-      } catch (_) {}
-      final uuidPattern = RegExp(
-        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$',
-        caseSensitive: false,
-      );
+      final scopedDir = await _getScopedTempDir();
+      if (!await scopedDir.exists()) return;
 
-      for (var dir in dirsToClean) {
-        if (await dir.exists()) {
-          final files = dir.listSync();
-          for (var file in files) {
-            if (file is File) {
-              final name = file.path.split('/').last.split('\\').last;
-              if (uuidPattern.hasMatch(name) ||
-                  name.toLowerCase().endsWith('.jpg') ||
-                  name.toLowerCase().endsWith('.jpeg')) {
-                await file.delete();
-                AppLogger.info('Cleaned up orphaned session image');
-              }
-            }
+      final entities = scopedDir.listSync();
+      for (final entity in entities) {
+        if (entity is File) {
+          try {
+            await entity.delete();
+            AppLogger.info(
+              'Cleaned orphaned temp file: '
+              '${entity.path.split(Platform.pathSeparator).last}',
+            );
+          } catch (_) {
+            // Non-fatal — skip locked or already-deleted files.
           }
         }
       }

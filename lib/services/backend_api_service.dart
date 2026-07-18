@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
+import '../services/local_storage_service.dart';
 import '../utils/logger.dart';
 
 /// Communicates with the Python overlay-generation backend.
@@ -51,9 +51,12 @@ class BackendApiService {
       }
 
       final bytes = await streamed.stream.toBytes();
-      final directory = await getTemporaryDirectory();
+
+      // Save the overlay into the scoped temp directory so it is included in
+      // the startup cleanup sweep and never pollutes the system temp root.
+      final scopedPath = await LocalStorageService.getScopedTempPath();
       final output = File(
-        '${directory.path}/dynamic_silhouette_'
+        '$scopedPath/dynamic_silhouette_'
         '${DateTime.now().millisecondsSinceEpoch}.png',
       );
       await output.writeAsBytes(bytes, flush: true);

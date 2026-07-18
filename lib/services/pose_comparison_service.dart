@@ -1,5 +1,4 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
 
 /// Result of evaluating a live pose against a target reference pose.
 class PoseMatchResult {
@@ -121,9 +120,6 @@ class PoseComparisonService {
   static PoseMatchResult evaluate(
     Map<String, dynamic> live,
     Map<String, dynamic> reference, {
-    Size viewfinderSize = const Size(360, 480),
-    Size liveImageSize = const Size(480, 640),
-    Size referenceImageSize = const Size(480, 640),
     bool mirrorLive = false,
   }) {
     if (live.isEmpty || reference.isEmpty) {
@@ -392,11 +388,6 @@ class _Vector3D {
 
   double dot(_Vector3D o) => x * o.x + y * o.y + z * o.z;
 
-  _Vector3D cross(_Vector3D o) => _Vector3D(
-        y * o.z - z * o.y,
-        z * o.x - x * o.z,
-        x * o.y - y * o.x,
-      );
 
   double norm() => sqrt(x * x + y * y + z * z);
 

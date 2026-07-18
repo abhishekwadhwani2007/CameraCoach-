@@ -9,7 +9,6 @@ class AppConstants {
 
   // SharedPreferences keys
   static const String onboardingDoneKey = 'onboarding_done';
-  static const String userIdKey = 'user_id';
 
   // TFLite model
   static const String poseModelPath = 'models/pose_landmark_full.tflite';

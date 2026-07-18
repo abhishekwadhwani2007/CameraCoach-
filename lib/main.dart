@@ -14,24 +14,31 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  await LocalStorageService.cleanOrphanedReferences();
-  await LocalStorageService.clearSessionReference();
+  // Clean up any leftover temp files from a previous interrupted session.
+  // Wrapped in try/catch so a cleanup failure can never prevent the app from
+  // launching. The reference itself is NOT cleared here — it persists across
+  // restarts so the user goes straight to coaching on relaunch.
+  try {
+    await LocalStorageService.cleanOrphanedReferences();
+  } catch (e) {
+    debugPrint('Startup cleanup failed (non-fatal): $e');
+  }
 
   final prefs = await SharedPreferences.getInstance();
   final bool onboardingDone = prefs.getBool('onboarding_done') ?? false;
 
-  runApp(PoseCoachApp(showOnboarding: !onboardingDone));
+  runApp(CameraCoachApp(showOnboarding: !onboardingDone));
 }
 
-class PoseCoachApp extends StatelessWidget {
+class CameraCoachApp extends StatelessWidget {
   final bool showOnboarding;
 
-  const PoseCoachApp({super.key, required this.showOnboarding});
+  const CameraCoachApp({super.key, required this.showOnboarding});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'PoseCoach',
+      title: 'CameraCoach',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: showOnboarding ? const OnboardingScreen() : const HomeScreen(),

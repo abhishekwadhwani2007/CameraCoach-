@@ -348,24 +348,9 @@ class _LiveCoachScreenState extends State<LiveCoachScreen>
         _lastNosePosition = null;
       }
 
-      final screenWidth = MediaQuery.of(context).size.width;
-      final aspect = _aspectRatioValues[_selectedAspectRatioIndex];
-      final vfWidth = screenWidth;
-      final vfHeight = aspect != null ? screenWidth / aspect : MediaQuery.of(context).size.height;
-      final viewfinderSize = Size(vfWidth, vfHeight);
-
-      final camValue = _cameraController!.value;
-      final liveImageSize = Size(
-        camValue.previewSize!.height,
-        camValue.previewSize!.width,
-      );
-
       final result = PoseComparisonService.evaluate(
         live,
         _referenceLandmarks!,
-        viewfinderSize: viewfinderSize,
-        liveImageSize: liveImageSize,
-        referenceImageSize: _referenceImageSize ?? liveImageSize,
         mirrorLive: _isFrontCamera,
       );
 

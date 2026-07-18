@@ -1,4 +1,4 @@
-# PoseCoach 📸
+# CameraCoach 📸
 
 <div align="center">
 
@@ -10,76 +10,119 @@
 
 </div>
 
-PoseCoach is a Flutter mobile app that helps a user recreate a reference pose in front of the camera. It combines on-device pose detection with a Python overlay-generation service so the user can align with a clean silhouette guide, capture the shot, and review basic photo-quality feedback.
+**CameraCoach** is a Flutter mobile app that helps you recreate a reference pose in front of the camera — without needing a professional photographer. Upload any reference photo, let the AI extract a silhouette guide, then align yourself with it in real time. When your pose matches the reference above 97%, the app automatically counts down and captures the shot.
 
-The project is built as a practical AI photography assistant: the camera feed stays on the device, pose matching runs locally with Google ML Kit, and the optional backend converts a reference photo into a transparent coaching overlay.
+Pose matching runs fully on-device using Google ML Kit. The optional Python backend converts your reference photo into a clean, transparent silhouette overlay.
 
 ---
 
-## 👨‍💻 The Story Behind This Project
+## 👨‍💻 The Story Behind CameraCoach
 
-> *"The idea for PoseCoach was born out of a simple, universal problem: finding the right person to take the perfect photo."*
+> *"The idea came from a family trip — a perfect location, a perfect moment, and nobody who knew how to frame the shot the way I had it in my head."*
 
-During a family trip to a scenic location, I asked my parents to take a photo of me. While the setting was perfect, communicating the exact pose and framing I wanted proved difficult. Recognizing that many people struggle to capture their desired shots without a professional photographer, the concept for **PoseCoach** was formed.
+During a family trip to a scenic location, I asked my parents to take a photo. The setting was ideal, but no matter how I tried to explain the framing and pose I wanted, something was always off. The photo was fine — but it wasn't *the* photo. That frustration stuck with me, and I started thinking: this isn't just my problem. Anyone who's ever tried to direct a non-photographer knows the struggle.
 
-I teamed up with a friend to bring this idea to life. We divided the architecture—he handled the frontend UI, while I focused on the backend logic and computer vision algorithms. We started development in late February, balancing the project alongside our college mid-semester exams. Within a month and a half of rapid prototyping and trial-and-error, we had our first working version.
+That was the spark for CameraCoach.
 
-Our initial prototype utilized a basic stick-figure skeleton overlay to guide the subject. However, shortly after, we noticed new AI camera features in the smartphone industry providing full-body silhouette overlays. Realizing our skeleton approach lacked a premium feel and disrupted visibility, we pivoted to a **Silhouette/Doodle Overlay**.
+I teamed up with a friend to build it. We split the work along our strengths — he focused on the UI and frontend, while I handled the backend logic, computer vision, and ML pipeline. We kicked off development in late February, right in the middle of our college mid-semester exam season. Still, we carved out time every evening and managed to get a rough working prototype within about six weeks.
 
-This pivot was challenging. Building a robust backend pipeline to accurately extract a clean silhouette from any user-provided reference photo took nearly two months of iteration. To streamline the photography experience, we also implemented an **auto-capture workflow**: once the user aligns with the overlay and hits a >97% pose match score, the app automatically initiates a 3-second cancelable countdown before taking the photo.
+Our first version used a stick-figure skeleton overlay drawn over the camera feed. It worked, technically, but it looked dated and got in the way of the actual frame. Around this time, we noticed high-end smartphones starting to ship AI camera modes that showed a full-body silhouette guide — a soft, glowing outline of the subject. That was the look we wanted.
 
-### 🚧 Current Hurdles & Next Steps
-Extracting and displaying the overlay flawlessly in real-time remains a complex challenge. In the current version, the overlay scale is static—for example, if a 22-year-old adult uses a reference photo of a 15-year-old, the silhouette's proportions won't perfectly match the adult's body shape and size. 
+So we pivoted.
 
-Our primary focus for the next version is implementing **dynamic overlay retargeting**, allowing the silhouette to intelligently scale and adjust to the live user's unique body proportions.
+Building a backend pipeline that could reliably extract a clean silhouette from *any* user-provided photo — different lighting, backgrounds, clothing, body types — took nearly two months of iteration. Getting the GrabCut segmentation, TFLite pose landmarks, and neon glow rendering to all cooperate was the hardest part of the project. We also built an auto-capture workflow into the live session: once the app detects a 97%+ pose match held for five consecutive frames, it starts a 3-second cancelable countdown and fires the shutter automatically. No fumbling with the shutter button right when you've finally nailed the pose.
+
+---
+
+## 🗺️ App Flow
+
+```mermaid
+graph TD
+    A((📱 Launch)) --> B{First Launch?}
+    B -- Yes --> C[🎉 Onboarding\n3-page intro]
+    B -- No --> D[🏠 Home Screen]
+    C --> D
+
+    D --> E[📂 Upload Reference Photo]
+    D --> F[▶️ Start Coaching]
+
+    E --> G[🌐 Send to Backend API\nFastAPI + Python]
+    G --> H[🧠 Silhouette Generation\nTFLite + GrabCut + Neon Glow]
+    H --> I[📋 Pose Confirmation Screen\nPreview overlay on reference]
+    I -- Human detected ✅ --> J[💾 Save Reference\nEncrypted local storage]
+    I -- No human ❌ --> E
+    J --> D
+
+    F --> K{Reference saved?}
+    K -- No --> E
+    K -- Yes --> L[📷 Live Coaching Screen\nCamera + Silhouette Overlay]
+
+    L --> M[🔄 Real-time Pose Detection\nML Kit on every 4th frame]
+    M --> N{Match Score ≥ 97%\nfor 5 frames?}
+    N -- No --> O[💬 Live Guidance\nElbow, knee, hip corrections]
+    O --> M
+    N -- Yes --> P[⏳ 3s Auto-Capture Countdown\nCancelable]
+    P -- Cancelled --> M
+    P -- Completed --> Q[📸 Take Photo\nSave to Gallery]
+    Q --> R[🔍 Capture Review Screen\nExposure · DoF · Color Temp]
+    R --> D
+
+    L --> S[🎛️ PRO Mode\nISO · Shutter · WB · EV]
+    S --> L
+```
 
 ---
 
 ## 💡 Key Features
 
-- **Reference Photo Selection**: Import desired poses directly from the gallery.
-- **Smart Overlay Generation**: Transparent silhouette creation via a FastAPI backend.
-- **On-Device Pose Detection**: Real-time pose analysis using Google ML Kit.
-- **Live Match Scoring**: Continuous visual feedback on how well the user matches the reference.
-- **Auto-Capture Flow**: Automatic 3-second countdown when a 97%+ match is achieved.
-- **Photo Quality Analysis**: Evaluates exposure, depth, dynamic range, and color balance.
-- **Native Camera Controls**: Adjust ISO, shutter speed, white balance, and exposure directly.
+- **Reference Photo Selection** — Import any target pose from your gallery
+- **Smart Silhouette Generation** — Backend converts the reference into a transparent neon glow overlay
+- **On-Device Pose Detection** — Real-time analysis using Google ML Kit (no data leaves your phone)
+- **Live Match Scoring** — Continuous visual feedback on how closely your pose matches the reference
+- **Auto-Capture** — Automatic 3-second countdown fires the shutter once a 97%+ match is held
+- **Photo Quality Analysis** — Evaluates exposure, depth of field, dynamic range, and color balance after each shot
+- **PRO Camera Controls** — Manually adjust ISO, shutter speed, white balance, and exposure compensation
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: Flutter and Dart
-- **Computer Vision (Mobile)**: Google ML Kit Pose Detection
-- **Computer Vision (Backend)**: OpenCV, NumPy, SciPy, and TensorFlow
-- **Backend API**: FastAPI (Python)
-- **Local Storage**: `flutter_secure_storage` and `shared_preferences`
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Flutter & Dart |
+| **On-Device CV** | Google ML Kit Pose Detection |
+| **Backend CV** | OpenCV · NumPy · SciPy · TensorFlow Lite |
+| **Backend API** | FastAPI (Python) |
+| **Local Storage** | `flutter_secure_storage` · `shared_preferences` |
 
 ---
 
 ## 📂 Project Structure
 
 ```text
-pose_coach/
-|-- android/                  # Android runner and native camera plugin
-|-- assets/
-|   |-- images/               # App image assets
-|   `-- models/               # TensorFlow Lite model assets
-|-- backend/
-|   |-- models/               # Backend TFLite model
-|   |-- outline.py            # Silhouette and neon overlay generation
-|   |-- requirements.txt      # Python dependencies
-|   `-- server.py             # FastAPI upload endpoint
-|-- ios/                      # iOS runner and native camera plugin
-|-- lib/
-|   |-- core/                 # Theme and app constants
-|   |-- features/             # Home, onboarding, review, and live session UI
-|   |-- models/               # Reference model
-|   |-- services/             # Camera, pose, storage, backend, and analysis services
-|   |-- utils/                # Logging helpers
-|   `-- widgets/              # Reusable UI components
-|-- test/                     # Flutter unit and widget tests
-`-- pubspec.yaml
+camera_coach/
+├── android/                  # Android runner and native camera plugin
+├── assets/
+│   ├── images/               # App image assets
+│   └── models/               # TensorFlow Lite model assets
+├── backend/
+│   ├── models/               # Backend TFLite model
+│   ├── outline.py            # Silhouette extraction and neon overlay generation
+│   ├── requirements.txt      # Python dependencies
+│   └── server.py             # FastAPI upload endpoint
+├── ios/                      # iOS runner and native camera plugin
+├── lib/
+│   ├── core/                 # App theme and constants
+│   ├── features/
+│   │   ├── home/             # Home screen — reference upload & coaching entry
+│   │   ├── onboarding/       # First-launch walkthrough
+│   │   ├── live_session/     # Live camera + pose matching + auto-capture
+│   │   └── review/           # Post-capture quality analysis
+│   ├── models/               # Reference data model
+│   ├── services/             # Camera, pose, storage, API, and analysis services
+│   ├── utils/                # Logging
+│   └── widgets/              # Reusable UI components
+└── test/                     # Flutter unit and widget tests
 ```
 
 ---
@@ -115,53 +158,63 @@ pip install -r requirements.txt
 uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The overlay endpoint will be available at: `http://localhost:8000/api/generate_overlay`
-*(Note: When running on a physical phone, use your computer's LAN IP address instead of `localhost`.)*
+The overlay endpoint will be live at `http://localhost:8000/api/generate_overlay`
+
+> **Note:** When testing on a physical phone, replace `localhost` with your computer's LAN IP address (e.g. `192.168.1.10`).
 
 ### 3️⃣ Flutter Setup
 
-Install packages:
 ```bash
 flutter pub get
-```
-
-Run the app with your backend URL:
-```bash
 flutter run --dart-define=BACKEND_URL=http://YOUR_PC_IP:8000
 ```
 
-Alternatively, you can keep local launch values in `.env.json`:
+Or create a `.env.json` file to avoid retyping the URL:
 ```json
 {
   "BACKEND_URL": "http://YOUR_PC_IP:8000"
 }
 ```
-Then run:
 ```bash
 flutter run --dart-define-from-file=.env.json
 ```
 
 ---
 
-## 🛡️ GitHub Safety Checklist
+## 🚧 Known Limitations & What's Next
 
-Before uploading the project, make sure these files and folders are not committed or manually uploaded:
+The core coaching loop works well, but one limitation stands out in the current version:
 
-- `.env.json`
-- `android/app/google-services.json`
-- `ios/Runner/GoogleService-Info.plist`
-- `lib/firebase_options.dart`
-- `build/`
-- `.dart_tool/`
-- `android/local.properties`
-- `ios/Flutter/Generated.xcconfig`
+**The silhouette overlay uses a fixed scale.** It's extracted from the reference photo as-is, which means if the reference person and the live user have significantly different body proportions — for example, a taller adult trying to match a pose from a photo of a shorter teenager — the silhouette won't perfectly match the live user's shape. The alignment still works, but the visual fit isn't ideal.
 
-This repository includes `.gitignore` rules for those paths, but manual drag-and-drop uploads to GitHub can still include ignored files. **Prefer using Git from the command line or GitHub Desktop.**
+**The v2 goal is dynamic overlay retargeting** — using the live user's detected keypoints to intelligently rescale and warp the silhouette to match their unique body proportions in real time. This would make the coaching experience feel truly personalized rather than just comparative.
+
+Other items on the roadmap:
+- Focus peaking in PRO mode (the plumbing is already in place)
+- Self-timer (3s / 10s) selector in the camera UI
+- VIDEO mode support (currently a UI placeholder)
+
+---
+
+## 🛡️ Security Checklist
+
+The following files are excluded by `.gitignore` and should **never** be committed manually:
+
+| File | Why |
+|------|-----|
+| `.env.json` | Contains your local backend IP |
+| `android/app/google-services.json` | Firebase credentials |
+| `ios/Runner/GoogleService-Info.plist` | Firebase credentials |
+| `build/` | Compiled output |
+| `.dart_tool/` | Generated tooling metadata |
+| `android/local.properties` | Local SDK paths |
+
+> **Prefer using Git from the terminal or GitHub Desktop** — drag-and-drop uploads to GitHub can inadvertently include files that `.gitignore` normally blocks.
 
 ---
 
 <div align="center">
 
-Made with ❤️ by **Abhishek Wadhwani**
+Built with ❤️ by **Abhishek Wadhwani** & **[Partner]**
 
 </div>

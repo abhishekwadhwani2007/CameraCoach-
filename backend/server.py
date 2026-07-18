@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 import traceback
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -85,12 +85,17 @@ async def generate_overlay(
 
     print(f"[OK] Received {len(file_contents):,} bytes (type={file.content_type})", flush=True)
 
-    with NamedTemporaryFile(delete=False, suffix=safe_input_suffix) as temp_in:
-        temp_in.write(bytes(file_contents))
-        input_path = temp_in.name
+    # Write the upload to a temp file and explicitly close it before processing.
+    # On Windows, NamedTemporaryFile holds an exclusive lock while open, which
+    # prevents OpenCV from reading the file in the same process.
+    temp_in = NamedTemporaryFile(delete=False, suffix=safe_input_suffix)
+    temp_in.write(bytes(file_contents))
+    temp_in.close()  # Release handle so OpenCV can open the file.
+    input_path = temp_in.name
 
-    with NamedTemporaryFile(delete=False, suffix=".png") as temp_out:
-        output_path = temp_out.name
+    temp_out = NamedTemporaryFile(delete=False, suffix=".png")
+    temp_out.close()  # Release handle so OpenCV can write the result.
+    output_path = temp_out.name
 
     print("[START] generate_transparent_overlay() ...", flush=True)
     try:
