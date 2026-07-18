@@ -37,38 +37,52 @@ Building a backend pipeline that could reliably extract a clean silhouette from 
 ## 🗺️ App Flow
 
 ```mermaid
-graph TD
-    A((📱 Launch)) --> B{First Launch?}
-    B -- Yes --> C[🎉 Onboarding\n3-page intro]
-    B -- No --> D[🏠 Home Screen]
-    C --> D
+flowchart TD
 
-    D --> E[📂 Upload Reference Photo]
-    D --> F[▶️ Start Coaching]
+    subgraph P1[" ① Launch "]
+        direction TB
+        A([🚀 App Start]) --> B{First time?}
+        B -->|Yes| C[🎉 Onboarding]
+        B -->|No| D[🏠 Home Screen]
+        C --> D
+    end
 
-    E --> G[🌐 Send to Backend API\nFastAPI + Python]
-    G --> H[🧠 Silhouette Generation\nTFLite + GrabCut + Neon Glow]
-    H --> I[📋 Pose Confirmation Screen\nPreview overlay on reference]
-    I -- Human detected ✅ --> J[💾 Save Reference\nEncrypted local storage]
-    I -- No human ❌ --> E
-    J --> D
+    subgraph P2[" ② Set Up Reference "]
+        direction TB
+        E[📂 Pick Photo from Gallery]
+        E --> F[🌐 Send to Backend API]
+        F --> G[🧠 Generate Silhouette]
+        G --> H{Person detected?}
+        H -->|No — retry| E
+        H -->|Yes| I[🖼️ Preview Overlay]
+        I --> J[(💾 Save Reference)]
+        J --> D
+    end
 
-    F --> K{Reference saved?}
-    K -- No --> E
-    K -- Yes --> L[📷 Live Coaching Screen\nCamera + Silhouette Overlay]
+    subgraph P3[" ③ Live Coaching "]
+        direction TB
+        K[▶️ Open Camera + Overlay]
+        K --> L[🔄 Detect Pose — every 4th frame]
+        L --> M{Score ≥ 97% for 5 frames?}
+        M -->|No| N[💬 Show Correction]
+        N --> L
+        M -->|Yes| O[⏳ 3-second Countdown]
+        O -->|Cancelled| L
+        O -->|Auto-fires| P[📸 Take Photo]
+    end
 
-    L --> M[🔄 Real-time Pose Detection\nML Kit on every 4th frame]
-    M --> N{Match Score ≥ 97%\nfor 5 frames?}
-    N -- No --> O[💬 Live Guidance\nElbow, knee, hip corrections]
-    O --> M
-    N -- Yes --> P[⏳ 3s Auto-Capture Countdown\nCancelable]
-    P -- Cancelled --> M
-    P -- Completed --> Q[📸 Take Photo\nSave to Gallery]
-    Q --> R[🔍 Capture Review Screen\nExposure · DoF · Color Temp]
-    R --> D
+    subgraph P4[" ④ Review Shot "]
+        direction TB
+        Q[🔍 Capture Review]
+        Q --> R[Exposure · Depth · Color Temp]
+        R --> S([🏠 Back to Home])
+    end
 
-    L --> S[🎛️ PRO Mode\nISO · Shutter · WB · EV]
-    S --> L
+    D -->|Upload Reference| E
+    D -->|Start Coaching| K
+    K --> |No reference saved| E
+    P --> Q
+    S --> D
 ```
 
 ---
@@ -215,6 +229,6 @@ The following files are excluded by `.gitignore` and should **never** be committ
 
 <div align="center">
 
-Built with ❤️ by **Abhishek Wadhwani** & **[Partner]**
+Built with ❤️ by **Abhishek Wadhwani** & **Team**
 
 </div>
