@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+python-multipart
+opencv-python
+tensorflow
+numpy
+scipy
+slowapi

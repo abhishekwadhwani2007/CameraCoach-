@@ -1,0 +1,49 @@
+name: pose_coach
+description: PoseCoach – Real-time AI Pose Guidance & Photo Enhancement App
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Camera & Sensors
+  camera: ^0.11.0+2
+  sensors_plus: ^6.0.1
+
+  # ML / Pose Detection
+  google_mlkit_pose_detection: ^0.11.0
+  tflite_flutter: ^0.12.1
+
+  # Permissions & File/Gallery
+  permission_handler: ^11.3.1
+  image_picker: ^1.1.2
+  http: ^1.2.2
+  gal: ^2.3.0
+  path_provider: ^2.1.4
+
+  # Image Processing
+  image: ^4.2.0
+
+  # Local Storage
+  shared_preferences: ^2.3.2      # non-sensitive flags only (onboarding)
+  flutter_secure_storage: ^9.2.2  # AES-256 + Android Keystore for sensitive data
+
+  # Utilities
+  uuid: ^4.4.2
+  cupertino_icons: ^1.0.8
+  exif: ^3.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/models/
+    - assets/images/
